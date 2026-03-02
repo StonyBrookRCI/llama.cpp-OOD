@@ -1,0 +1,6 @@
+---
+name: "LLM Chat (llama.cpp)"
+category: "Interactive Apps"
+subcategory: "AI"
+role: "batch_connect"
+description: "Launch a local LLM chat interface powered by llama.cpp with GPU acceleration."

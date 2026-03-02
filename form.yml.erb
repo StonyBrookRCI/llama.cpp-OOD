@@ -1,0 +1,123 @@
+cluster: "nvwulf"
+
+attributes:
+  queue:
+    widget: "select"
+    label: "Queue"
+    help: "Select the queue for job submission."
+    options:
+      - ["Regular b40x4 (max 8h)", "b40x4"]
+      - ["Long b40x4 (max 48h)", "b40x4-long"]
+    value: "b40x4"
+
+  bc_num_hours:
+    widget: "number_field"
+    label: "Number of hours"
+    value: 2
+    min: 1
+    max: 48
+    step: 1
+
+  memory_gb:
+    widget: "select"
+    label: "Memory (GB)"
+    options:
+      - ["32", "32"]
+      - ["64", "64"]
+      - ["128", "128"]
+      - ["256", "256"]
+      - ["480", "480"]
+      - ["All available", "0"]
+    value: "64"
+
+  num_gpus:
+    widget: "select"
+    label: "Number of GPUs"
+    help: "Each RTX PRO 6000 (B40) has 98 GB VRAM."
+    options:
+      - ["1", "1"]
+      - ["2", "2"]
+      - ["3", "3"]
+      - ["4", "4"]
+    value: "1"
+
+  num_cpus:
+    widget: "number_field"
+    label: "Number of cores"
+    value: 1
+    min: 1
+    max: 64
+    step: 1
+
+  # ============ MODEL SELECTION ============
+  # Admin: when you download a new model to /lustre/nvwulf/software/llama.cpp/models/
+  # just add a new line here with ["Display Name", "/full/path/to/model.gguf"]
+
+  model_choice:
+    widget: "select"
+    label: "Model"
+    help: "Select a system model or choose 'No - Use my own model' to provide a custom path."
+    options:
+      - ["Mistral 7B Instruct v0.2 (Q4_K_M, ~4 GB)", "/lustre/nvwulf/software/llama.cpp/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"]
+      - ["Qwen3 Coder Next (Q4_K_M, ~45 GB)", "/lustre/nvwulf/software/llama.cpp/models/Qwen_Qwen3-Coder-Next-Q4_K_M.gguf"]
+      - ["DeepSeek Coder Coder instruct (Q4_K_M, ~19 GB)", "/lustre/nvwulf/software/llama.cpp/models/deepseek-coder-33b-instruct.Q4_K_M.gguf"]
+      - ["No - Use my own model", "custom"]
+    value: "/lustre/nvwulf/software/llama.cpp/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+
+  custom_model_path:
+    label: "Path to your GGUF model file (only if 'No - Use my own model' selected above)"
+    help: "Full path to your .gguf file. Ignored if you selected a system model."
+    widget: "text_field"
+    value: "/lustre/nvwulf/scratch/<%= ENV['USER'] %>/models/my-model.gguf"
+
+  context_size:
+    widget: "select"
+    label: "Context size (tokens)"
+    help: "Maximum conversation context. 4096 is good for most tasks."
+    options:
+      - ["2048", "2048"]
+      - ["4096", "4096"]
+      - ["8192", "8192"]
+      - ["16384", "16384"]
+      - ["32768", "32768"]
+    value: "4096"
+
+  gpu_layers:
+    widget: "select"
+    label: "GPU layers to offload"
+    help: "'All' for best performance if the model fits in VRAM."
+    options:
+      - ["All (recommended)", "99"]
+      - ["None (CPU only)", "0"]
+      - ["16", "16"]
+      - ["32", "32"]
+      - ["48", "48"]
+    value: "99"
+
+  email:
+    label: "Email address"
+    help: "Optional. Used for job notifications."
+    widget: text_field
+    value: ""
+
+  bc_email_on_started:
+    label: "Email me when job starts"
+    widget: check_box
+    checked_value: true
+    unchecked_value: false
+    value: false
+
+form:
+  - queue
+  - bc_num_hours
+  - memory_gb
+  - num_gpus
+  - num_cpus
+  - model_choice
+  - custom_model_path
+  - context_size
+  - gpu_layers
+  - email
+  - bc_email_on_started
+
+submit: "Launch"

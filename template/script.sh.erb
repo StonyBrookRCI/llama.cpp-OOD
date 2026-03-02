@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -e
+
+echo "=== llama.cpp server starting ==="
+
+module purge
+module load llama.cpp/8184
+module load cuda12.8/toolkit/12.8.0
+
+# Read connection info from before.sh
+host_fqdn="$(cat "${PWD}/.host")"
+port="$(cat "${PWD}/.port")"
+host_short="$(hostname -s 2>/dev/null || hostname)"
+
+echo "Host: ${host_short}"
+echo "Port: ${port}"
+
+# Form values
+MODEL_CHOICE="<%= context.model_choice.to_s.strip %>"
+CUSTOM_MODEL_PATH="<%= context.custom_model_path.to_s.strip %>"
+CONTEXT_SIZE="<%= context.context_size.to_s.strip %>"
+GPU_LAYERS="<%= context.gpu_layers.to_s.strip %>"
+
+# ============ MODEL SELECTION ============
+if [ "${MODEL_CHOICE}" = "custom" ]; then
+  MODEL_FILE="${CUSTOM_MODEL_PATH}"
+  if [ ! -f "${MODEL_FILE}" ]; then
+    echo "ERROR: Custom model file not found: ${MODEL_FILE}"
+    echo "Please check the path and ensure the file exists."
+    exit 1
+  fi
+  echo "Using custom model: ${MODEL_FILE}"
+else
+  MODEL_FILE="${MODEL_CHOICE}"
+  if [ ! -f "${MODEL_FILE}" ]; then
+    echo "ERROR: System model file not found: ${MODEL_FILE}"
+    echo "Please contact your admin to verify system models."
+    exit 1
+  fi
+  echo "Using system model: ${MODEL_FILE}"
+fi
+
+echo ""
+echo "=========================================="
+echo "  Model:         $(basename "${MODEL_FILE}")"
+echo "  Context size:  ${CONTEXT_SIZE}"
+echo "  GPU layers:    ${GPU_LAYERS}"
+echo "  Listening on:  0.0.0.0:${port}"
+echo "=========================================="
+echo ""
+
+# Write connection.yml for OOD reverse proxy
+cat > "${PWD}/connection.yml" << EOF
+---
+host: "${host_short}"
+port: "${port}"
+EOF
+
+# Cleanup
+cleanup() {
+  echo "Cleaning up..."
+  kill "${SERVER_PID}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# ============ START LLAMA-SERVER ============
+echo "Starting llama-server..."
+
+llama-server \
+  --model "${MODEL_FILE}" \
+  --host 0.0.0.0 \
+  --port "${port}" \
+  --ctx-size "${CONTEXT_SIZE}" \
+  --n-gpu-layers "${GPU_LAYERS}" \
+  > "${PWD}/llama-server.log" 2>&1 &
+SERVER_PID=$!
+
+# Wait for ready
+echo "Waiting for server..."
+for i in $(seq 1 120); do
+  if curl -s "http://127.0.0.1:${port}/health" 2>/dev/null | grep -q "ok"; then
+    echo "llama-server is ready!"
+    break
+  fi
+  if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+    echo "ERROR: llama-server died. Log:"
+    cat "${PWD}/llama-server.log"
+    exit 1
+  fi
+  [ $((i % 15)) -eq 0 ] && echo "Still loading model... (${i}s)"
+  sleep 1
+done
+
+if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+  echo "ERROR: llama-server crashed."
+  cat "${PWD}/llama-server.log"
+  exit 1
+fi
+
+echo ""
+echo "=============================================="
+echo "  llama.cpp server is running!"
+echo ""
+echo "  Web UI:  https://nvwulf-ood.nvwulf.stonybrook.edu/rnode/${host_short}/${port}/"
+echo "  Model:   $(basename "${MODEL_FILE}")"
+echo ""
+echo "  Click 'Connect to LLM Chat' in OOD."
+echo "=============================================="
+echo ""
+
+wait "${SERVER_PID}"

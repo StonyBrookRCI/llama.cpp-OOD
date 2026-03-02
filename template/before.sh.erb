@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+echo "=== before.sh: Setting up llama.cpp ==="
+
+module purge
+module load llama.cpp/8184
+
+host_fqdn="$(hostname -s 2>/dev/null || hostname)"
+
+export LLAMA_PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
+
+echo "Port: ${LLAMA_PORT}"
+echo "Host: ${host_fqdn}"
+
+echo "${host_fqdn}" > "${PWD}/.host"
+echo "${LLAMA_PORT}" > "${PWD}/.port"
+
+echo "before.sh complete"
